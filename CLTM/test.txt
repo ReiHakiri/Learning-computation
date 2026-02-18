@@ -1,0 +1,7 @@
+2
+n
+until S = 0
+    overwrite 0
+    move right
+id
+overwrite 1
