@@ -1,4 +1,6 @@
 Require Import Arith.
+Require Import List.
+Import ListNotations.
 
 Definition reflexive {A: Type} (r: A -> A -> Prop) : Prop := forall x: A, r x x.
 
@@ -346,9 +348,6 @@ Proof.
     
   - apply I.
 Qed.
-
-Require Import List.
-Import ListNotations.
 
 Inductive Form_term: Type :=
   | special: Form_term
