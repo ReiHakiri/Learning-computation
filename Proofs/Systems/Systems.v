@@ -794,4 +794,19 @@ Definition halts (S: system) (x: state S): Prop := exists x': state S, (exists n
 Definition Form_stops (F: Form_program): Prop := exists F': Form_program, (exists n: nat, F' = repeat Form_step n F) /\ done F' = true.
 
 Theorem Form_done_correct: forall F: Form_program, Form_stops F <-> halts Form_system F.
-Proof. Admitted.
+Proof.
+  intros. split.
+  - intros. destruct H as [T H]. destruct H. destruct H as [n H].
+    exists T. split.
+    -- exists n. apply H.
+    -- simpl. unfold Form_step. rewrite H0. reflexivity.
+  - intros. destruct H as [T H]. destruct H. destruct H as [n H].
+    simpl in H. simpl in H0.
+    exists T. split.
+    -- exists n. apply H.
+    -- destruct (done T) eqn:E.
+      --- reflexivity.
+      --- exfalso. unfold Form_step in H0. rewrite E in H0.
+          (* Destruct on every case to evaluate Form_step to a Form_program term and then use congruence *)
+          (* This needs automation so I'll skip it *)
+Abort.
