@@ -789,24 +789,57 @@ Definition Form_step (program: Form_program): Form_program :=
   
 Definition Form_system: system := {| state := Form_program; step := Form_step |}.
 
-Definition halts (S: system) (x: state S): Prop := exists x': state S, (exists n: nat, x' = repeat (step S) n x) /\ x' = (step S) x'.
-
 Definition Form_stops (F: Form_program): Prop := exists F': Form_program, (exists n: nat, F' = repeat Form_step n F) /\ done F' = true.
 
-Theorem Form_done_correct: forall F: Form_program, Form_stops F <-> halts Form_system F.
+Definition continue: list Form_term := [again].
+
+Definition stop: list Form_term := [].
+
+Definition Form_default (program: list(list Form_term)): Form_program :=
+  {| files := program;
+     open_pointer := 0;
+     line_pointer := 0;
+     char_1 := special;
+     char_2 := special;
+     char_3 := special;
+     char_4 := special;
+     truth := false;
+     done := false;
+     error := false |}.
+
+Theorem repeat_comm: forall A: Type, forall f: A -> A, forall n m: nat, forall a: A,
+  repeat f n (repeat f m a) = repeat f m (repeat f n a).
 Proof.
-  intros. split.
-  - intros. destruct H as [T H]. destruct H. destruct H as [n H].
-    exists T. split.
-    -- exists n. apply H.
-    -- simpl. unfold Form_step. rewrite H0. reflexivity.
-  - intros. destruct H as [T H]. destruct H. destruct H as [n H].
-    simpl in H. simpl in H0.
-    exists T. split.
-    -- exists n. apply H.
-    -- destruct (done T) eqn:E.
-      --- reflexivity.
-      --- exfalso. unfold Form_step in H0. rewrite E in H0.
-          (* Destruct on every case to evaluate Form_step to a Form_program term and then use congruence *)
-          (* This needs automation so I'll skip it *)
-Abort.
+  intros. rewrite <- repeat_add.
+  rewrite Nat.add_comm. rewrite repeat_add. reflexivity.
+Qed.
+
+Theorem repeat_f_comm: forall A: Type, forall f: A -> A, forall n: nat, forall a: A,
+  f(repeat f n a) = repeat f n (f a).
+Proof.
+  intros. replace f with (repeat f 1).
+  - rewrite repeat_comm. reflexivity.
+  - simpl. reflexivity.
+Qed.
+
+Definition Form_singleton (file: list Form_term): Form_program :=
+  Form_default [file].
+
+Theorem continue_correct: ~ Form_stops(Form_singleton continue).
+Proof.
+  unfold not. unfold Form_stops. intros.
+  destruct H as [F' H]. destruct H. destruct H as [n H].
+  induction n.
+  - simpl in H. rewrite H in H0. simpl in H0. congruence.
+  - simpl in H. rewrite H in H0. rewrite repeat_f_comm in H.
+    replace (Form_step(Form_singleton continue)) with (Form_singleton continue) in H0.
+    -- apply IHn in H. destruct H.
+    -- unfold Form_singleton. unfold Form_default. reflexivity.
+Qed.
+
+Theorem stop_correct: Form_stops(Form_singleton stop).
+Proof.
+  exists (repeat Form_step 2 (Form_singleton stop)). split.
+  - exists 2. reflexivity.
+  - simpl. reflexivity.
+Qed.
