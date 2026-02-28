@@ -791,6 +791,16 @@ Definition Form_system: system := {| state := Form_program; step := Form_step |}
 
 Definition Form_stops (F: Form_program): Prop := exists F': Form_program, (exists n: nat, F' = repeat Form_step n F) /\ done F' = true.
 
+Definition halts (S: system) (x: state S): Prop := exists x': state S, (exists n: nat, x' = repeat (step S) n x) /\ x' = (step S) x'.
+
+Theorem Form_stops_correct: forall program: Form_program, Form_stops program -> halts (Form_system) program.
+Proof.
+  intros. destruct H as [end_program H]. destruct H. destruct H as [n H].
+  unfold halts. exists end_program. split.
+  - exists n. apply H.
+  - simpl. unfold Form_step. rewrite H0. simpl. reflexivity.
+Qed.
+
 Definition continue: list Form_term := [again].
 
 Definition stop: list Form_term := [].
