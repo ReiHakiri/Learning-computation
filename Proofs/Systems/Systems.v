@@ -363,7 +363,8 @@ Inductive Form_term: Type :=
   | branch: Form_term
   | again: Form_term
   | last: Form_term
-  | swap: Form_term.
+  | swap: Form_term
+  | delete: Form_term.
 
 Record Form_program: Type := {
   files: list(list Form_term);
@@ -425,6 +426,13 @@ Fixpoint pop {A: Type} (l: list A): list A :=
   | [] => []
   | [a] => []
   | a :: l' => a :: (pop l')
+  end.
+
+Fixpoint remove_at {A: Type} (n: nat) (l: list A): list A :=
+  match n, l with
+  | _, [] => []
+  | 0, a :: l' => l'
+  | S n', a :: l' => a :: remove_at n' l'
   end.
 
 Fixpoint Form_expr_eq (F1 F2: Form_term): bool :=
@@ -713,8 +721,8 @@ Definition Form_step (program: Form_program): Form_program :=
   
   let see_line := nth (line_pointer program) (files program) [] in
   
-  match char_1 program, char_2 program with
-  | nat_repr n, nat_repr m =>
+  match char_1 program with
+  | nat_repr n =>
   
   if truth program then
   
@@ -735,23 +743,7 @@ Definition Form_step (program: Form_program): Form_program :=
      
   else
   
-  if length(files program) <? m then Form_error program else
-  
-  if length(files program) =? m then Form_done program else
-  
-  {| files := files program;
-     open_pointer := open_pointer program;
-     line_pointer := m;
-     char_1 := char_1 program;
-     char_2 := char_2 program;
-     char_3 := char_3 program;
-     char_4 := char_4 program;
-     truth := truth program;
-     done := done program;
-     error := error program |}
-     
-  | _, _ => Form_error program
-  end
+  Form_continue program
   
   
   | again =>
@@ -782,6 +774,71 @@ Definition Form_step (program: Form_program): Form_program :=
      truth := truth program;
      done := done program;
      error := error program |}
+     
+  
+  | delete =>
+
+  match char_1 program with
+  | nat_repr n =>
+  
+  if length(files program) <=? n then Form_error program else
+  
+  let new_files := remove_at n (files program) in
+  
+  if n <? open_pointer program then
+  
+  {| files := new_files;
+     open_pointer := open_pointer program - 1;
+     line_pointer := S(line_pointer program);
+     char_1 := char_1 program;
+     char_2 := char_2 program;
+     char_3 := char_3 program;
+     char_4 := char_4 program;
+     truth := truth program;
+     done := done program;
+     error := error program |}
+    
+  else if n =? open_pointer program then
+  
+  {| files := new_files;
+     open_pointer := open_pointer program;
+     line_pointer := 0;
+     char_1 := char_1 program;
+     char_2 := char_2 program;
+     char_3 := char_3 program;
+     char_4 := char_4 program;
+     truth := truth program;
+     done := done program;
+     error := error program |}
+  
+  else
+  
+  {| files := new_files;
+     open_pointer := open_pointer program;
+     line_pointer := S(line_pointer program);
+     char_1 := char_1 program;
+     char_2 := char_2 program;
+     char_3 := char_3 program;
+     char_4 := char_4 program;
+     truth := truth program;
+     done := done program;
+     error := error program |}
+  
+  | last =>
+  
+  {| files := remove_at (length(files program) - 1) (files program);
+     open_pointer := open_pointer program;
+     line_pointer := S(line_pointer program);
+     char_1 := char_1 program;
+     char_2 := char_2 program;
+     char_3 := char_3 program;
+     char_4 := char_4 program;
+     truth := truth program;
+     done := done program;
+     error := error program |}
+  
+  | _ => Form_error program
+  end
   
   
   | _ => Form_continue program
