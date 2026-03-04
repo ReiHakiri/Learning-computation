@@ -463,8 +463,16 @@ Fixpoint Form_expr_eq (F1 F2: Form_term): bool :=
   
 Definition special := nat_repr 0.
 
+Definition Form_empty (F: list(list Form_term)): bool :=
+  match F with
+  | [[]] => true
+  | _ => false
+  end.
+
 Definition Form_step (program: Form_program): Form_program :=
   if done program then program else
+  
+  if Form_empty(files program) then Form_done program else
   
   if length(files program) <? open_pointer program then Form_error program else
   
@@ -474,7 +482,7 @@ Definition Form_step (program: Form_program): Form_program :=
   
   if length file <? line_pointer program then Form_error program else
   
-  if length(files program) =? line_pointer program then Form_done program else
+  if length file =? line_pointer program then Form_done program else
   
   let line := nth (line_pointer program) file special in
   
@@ -726,9 +734,11 @@ Definition Form_step (program: Form_program): Form_program :=
   
   if truth program then
   
-  if length(files program) <? n then Form_error program else
+  let file := nth (open_pointer program) (files program) [] in
   
-  if length(files program) =? n then Form_done program else
+  if length file <? n then Form_error program else
+  
+  if length file =? n then Form_done program else
   
   {| files := files program;
      open_pointer := open_pointer program;
@@ -745,6 +755,8 @@ Definition Form_step (program: Form_program): Form_program :=
   
   Form_continue program
   
+  | _ => Form_error program
+  end
   
   | again =>
   
@@ -855,7 +867,7 @@ Proof.
   intros. destruct H as [end_program H]. destruct H. destruct H as [n H].
   unfold halts. exists end_program. split.
   - exists n. apply H.
-  - simpl. unfold Form_step. rewrite H0. simpl. reflexivity.
+  - simpl. unfold Form_step. rewrite H0. reflexivity.
 Qed.
 
 Definition continue: list Form_term := [again].
@@ -892,6 +904,10 @@ Qed.
 Definition Form_singleton (file: list Form_term): Form_program :=
   Form_default [file].
 
+Compute repeat Form_step 100 (Form_singleton continue).
+
+Compute repeat Form_step 1 (Form_singleton stop).
+
 Theorem continue_correct: ~ Form_stops(Form_singleton continue).
 Proof.
   unfold not. unfold Form_stops. intros.
@@ -910,3 +926,93 @@ Proof.
   - exists 2. reflexivity.
   - simpl. reflexivity.
 Qed.
+
+Definition set_char_1 (value: Form_term) (n_files: nat): list Form_term  :=
+  [move [value; last];
+   read_1 n_files 0;
+   swap;
+   read_1 n_files 1;
+   delete;
+   swap].
+
+Definition set_char_2 (value: Form_term) (n_files: nat): list Form_term  :=
+  [move [value; last];
+   read_2 n_files 0;
+   swap;
+   read_1 n_files 1;
+   delete;
+   swap].
+   
+Definition set_true (n_files: nat): list Form_term  :=
+  [move [last; last];
+   read_1 n_files 0;
+   read_2 n_files 1;
+   compare;
+   delete].
+
+Definition set_false (n_files: nat): list Form_term  :=
+  [move [last; special];
+   read_1 n_files 0;
+   read_2 n_files 1;
+   compare;
+   delete].
+
+Definition once_file (file: list Form_term): list Form_term :=
+  file ++
+  (set_char_1 (nat_repr 0) 1) ++
+  [delete].
+
+Compute repeat (Form_step) 11 (Form_singleton(once_file [special; special; last])).
+   
+Definition loop (body condition: list Form_term): list Form_term := (* Need to fix *)
+  let at_run := length body + (6 + 6) in
+  
+  let new_body := body ++ 
+                  (set_char_1 (nat_repr 2) 3) ++ (* Go to condition *)
+                  (set_char_2 (nat_repr 0) 3) ++
+                  [run] ++
+                  (set_char_1 (nat_repr (at_run + 6 + 2)) 3) ++ (* Back from condition *)
+                  [branch;
+                   again] ++ (* Condition false: run new_body again *)
+                  (set_char_1 (nat_repr 0) 3) ++ (* Condition true: go back to file where loop originated from *)
+                  (set_char_2 (nat_repr(2 + 6 + 6 + 1)) 3) ++
+                  [run] in
+                   
+  let new_condition := condition ++
+                       (set_char_1 (nat_repr 1) 3) ++ (* Go back to new_body *)
+                       (set_char_2 (nat_repr (at_run + 1)) 3) ++
+                       [run] in
+
+  [move new_body;
+   move condition]
+  
+  ++
+  
+  (set_char_1 (nat_repr 1) 3) ++
+  
+  (set_char_2 (nat_repr 0) 3) ++
+  
+  [run] ++
+  
+  (set_char_1 last 3) ++
+  
+  [delete; delete; delete].
+
+Compute repeat Form_step 50 (Form_singleton(loop [special; last] (set_true 3))).
+
+Definition conditional (condition body1 body2: list Form_term): list Form_term :=
+  let false_branch := length condition + (6 + 2 + 6 + 1) in
+
+  condition ++ (* Run the condition *)
+  (set_char_1 (nat_repr false_branch) 1) ++
+  [branch;
+   move body1] ++ (* Condition false: make body1 file and delete current file to run it *)
+  (set_char_1 (nat_repr 0) 2) ++
+  [delete;
+   move body2] ++ (* Condition true: make body2 file and delete current file to run it *)
+  (set_char_1 (nat_repr 0) 2) ++
+  [delete].
+
+Compute repeat Form_step 25 (Form_singleton(conditional (set_false 1) [last; special] [last; compare; again])).
+
+Compute repeat Form_step 25 (Form_singleton(conditional (set_true 1) [last; special] [last; compare; again])).
