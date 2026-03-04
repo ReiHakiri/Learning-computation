@@ -964,41 +964,38 @@ Definition once_file (file: list Form_term): list Form_term :=
 
 Compute repeat (Form_step) 11 (Form_singleton(once_file [special; special; last])).
    
-Definition loop (body condition: list Form_term): list Form_term := (* Need to fix *)
-  let at_run := length body + (6 + 6) in
+Definition loop (l_body condition body: list Form_term): list Form_term :=
+  let after_run := length l_body + (6 + 6 + 1) in
   
-  let new_body := body ++ 
-                  (set_char_1 (nat_repr 2) 3) ++ (* Go to condition *)
-                  (set_char_2 (nat_repr 0) 3) ++
-                  [run] ++
-                  (set_char_1 (nat_repr (at_run + 6 + 2)) 3) ++ (* Back from condition *)
-                  [branch;
-                   again] ++ (* Condition false: run new_body again *)
-                  (set_char_1 (nat_repr 0) 3) ++ (* Condition true: go back to file where loop originated from *)
-                  (set_char_2 (nat_repr(2 + 6 + 6 + 1)) 3) ++
-                  [run] in
-                   
-  let new_condition := condition ++
-                       (set_char_1 (nat_repr 1) 3) ++ (* Go back to new_body *)
-                       (set_char_2 (nat_repr (at_run + 1)) 3) ++
-                       [run] in
-
-  [move new_body;
-   move condition]
+  let new_l_body :=
   
-  ++
-  
-  (set_char_1 (nat_repr 1) 3) ++
-  
-  (set_char_2 (nat_repr 0) 3) ++
-  
+  l_body ++
+  (set_char_1 (nat_repr 1) 2) ++
+  (set_char_2 (nat_repr 0) 2) ++
   [run] ++
+  (set_char_1 (nat_repr(after_run + 6 + 2)) 2) ++
+  [branch;
+   again] ++
+  (set_char_1 last 2) ++
+  [delete;
+  move body] ++
+  (set_char_1 (nat_repr 0) 2) ++
+  [delete] in
   
-  (set_char_1 last 3) ++
+  let new_condition :=
   
-  [delete; delete; delete].
+  condition ++
+  (set_char_1 (nat_repr 0) 2) ++
+  (set_char_2 (nat_repr after_run) 2) ++
+  [run] in
+  
+  [move new_l_body;
+   move new_condition] ++
+  (set_char_1 (nat_repr 0) 3) ++
+  [delete].
 
-Compute repeat Form_step 50 (Form_singleton(loop [special; last] (set_true 3))).
+Compute repeat Form_step 70 (Form_singleton(loop [special; last] (set_true 2) [special; again])).
+(* Note that set_true requires knowing how much files there are at its execution time *)
 
 Definition conditional (condition body1 body2: list Form_term): list Form_term :=
   let false_branch := length condition + (6 + 2 + 6 + 1) in
