@@ -1045,18 +1045,34 @@ Proof.
   auto_at_conditional_check (Form_singleton(conditional (set_true 1) continue stop)) 11.
 Qed.
 
-Definition stop_decider (decider: list Form_term): Prop := 
-  forall program body1 body2: list Form_term,
-  
-  let condition := [move program] ++ decider in
-  
-  at_conditional_check 
-  (Form_singleton(conditional condition body1 body2)) 
-  condition
-  body1 body2
-  (fun p: Form_program => truth p = true <-> Form_stops(Form_singleton program)).
+Definition Form_comp (program: Form_program) (file: list Form_term): Form_program :=
+  {| files := (files program) ++ [file];
+     open_pointer := open_pointer program;
+     line_pointer := line_pointer program;
+     char_1 := char_1 program;
+     char_2 := char_2 program;
+     char_3 := char_3 program;
+     char_4 := char_4 program;
+     truth := truth program;
+     done := done program;
+     error := error program |}.
 
-Theorem stop_decider_impossible: ~ exists decider: list Form_term, stop_decider decider.
+Definition stop_decider (decider: list Form_term): Prop := 
+  forall program input body1 body2: list Form_term,
+  
+  let decider_p := Form_singleton(conditional decider body1 body2) in
+  
+  let decider_eval := Form_comp (Form_comp decider_p program) input in
+  
+  let program_p := Form_singleton program in
+  
+  at_conditional_check
+  decider_eval
+  decider
+  body1 body2
+  (fun p: Form_program => truth p = true <-> Form_stops(Form_comp program_p input)).
+
+Theorem stop_problem_impossible: ~ exists decider: list Form_term, stop_decider decider.
 Proof.
   unfold not. intros.
   destruct H as [decider H]. unfold stop_decider in H.
