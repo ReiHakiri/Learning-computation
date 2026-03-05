@@ -1013,3 +1013,51 @@ Definition conditional (condition body1 body2: list Form_term): list Form_term :
 Compute repeat Form_step 25 (Form_singleton(conditional (set_false 1) [last; special] [last; compare; again])).
 
 Compute repeat Form_step 25 (Form_singleton(conditional (set_true 1) [last; special] [last; compare; again])).
+
+Definition at_checkpoint 
+  (program: Form_program) (c_files: list(list Form_term)) (c_open c_line: nat) (P: Form_program -> Prop): Prop :=
+  files program = c_files /\ open_pointer program = c_open /\ line_pointer program = c_line /\
+  P program.
+  
+Definition eventually_at_checkpoint
+  (program: Form_program) (c_files: list(list Form_term)) (c_open c_line: nat) (P: Form_program -> Prop): Prop :=
+  exists program': Form_program, (exists n: nat, program' = repeat Form_step n program) /\
+  at_checkpoint program' c_files c_open c_line P.
+  
+Definition at_conditional_check (program: Form_program) (condition body1 body2: list Form_term) (P: Form_program -> Prop): Prop :=
+  eventually_at_checkpoint program [conditional condition body1 body2] 0 (length condition + 6) P.
+
+Definition True_f {X: Type} (x: X): Prop := True.
+
+Compute (repeat Form_step (5 + 6) (Form_singleton(conditional (set_true 1) continue stop))).
+
+Ltac once_at_conditional_check program n :=
+  exists (repeat Form_step n program); split; try exists n; try reflexivity; repeat split.
+
+Ltac auto_at_conditional_check program n :=
+  match n with
+  | 0 => once_at_conditional_check program 0
+  | S ?m => solve [once_at_conditional_check program n | auto_at_conditional_check program m]
+  end.
+
+Goal at_conditional_check (Form_singleton(conditional (set_true 1) continue stop)) (set_true 1) continue stop True_f.
+Proof.
+  auto_at_conditional_check (Form_singleton(conditional (set_true 1) continue stop)) 11.
+Qed.
+
+Definition stop_decider (decider: list Form_term): Prop := 
+  forall program body1 body2: list Form_term,
+  
+  let condition := [move program] ++ decider in
+  
+  at_conditional_check 
+  (Form_singleton(conditional condition body1 body2)) 
+  condition
+  body1 body2
+  (fun p: Form_program => truth p = true <-> Form_stops(Form_singleton program)).
+
+Theorem stop_decider_impossible: ~ exists decider: list Form_term, stop_decider decider.
+Proof.
+  unfold not. intros.
+  destruct H as [decider H]. unfold stop_decider in H.
+Abort.
