@@ -349,6 +349,13 @@ Proof.
   - apply I.
 Qed.
 
+Definition has_property {S: system} (x: state S) (P: state S -> Prop): Prop :=
+  exists x': state S, (exists n: nat, x' = repeat (step S) n x) /\ P x'.
+  
+Definition specific_eq {A: Type} (b: A): A -> Prop := fun a => a = b.
+
+Notation "'s=' x" := (specific_eq x) (at level 50, left associativity).
+
 Record has_conditional: Type := {
   c_system: system;
   c_true: state c_system;
@@ -356,17 +363,32 @@ Record has_conditional: Type := {
   c_truth_distinct: c_true <> c_false;
   C: state c_system -> state c_system -> state c_system -> state c_system;
   C_true_correct: 
-    forall x y z: state c_system, (exists n: nat, repeat (step c_system) n x = c_true) -> (exists n: nat, repeat (step c_system) n (C x y z) = y);
+    forall x y z: state c_system, has_property x (s= c_true) -> has_property (C x y z) (s= y);
   C_false_correct: 
-    forall x y z: state c_system, (exists n: nat, repeat (step c_system) n x = c_false) -> (exists n: nat, repeat (step c_system) n (C x y z) = z)}.
+    forall x y z: state c_system, has_property x (s= c_false) -> has_property (C x y z) (s= z);
+  o1: state c_system -> state c_system -> state c_system;
+  c_true_decider: state c_system -> bool;
+  c_true_decider_correct: forall x: state c_system, c_true_decider x = true <-> x = c_true;
+  c_false_decider: state c_system -> bool;
+  c_false_decider_correct: forall x: state c_system, c_false_decider x = true <-> x = c_false}.
 
 Record diagonalizable: Type := {
   d_c: has_conditional;
   d_system := c_system d_c;
   d_cond := C d_c;
   d_enc: state d_system -> state d_system -> state d_system -> state d_system -> state d_system;
-  o1: state d_system -> state d_system -> state d_system;
+  c_o1 := o1 d_c;
   o2: state d_system -> state d_system -> state d_system;
-  D := fun (f a b x: state d_system) => d_cond (o1(o1 f x) x) a b;
+  D := fun (f a b x: state d_system) => d_cond (c_o1 f (o2 x x)) a b;
   D': state d_system;
   D'_correct := forall f a b x: state d_system, (o2 (d_enc D' f a b) x) = D f a b x}.
+
+Definition decider {S: has_conditional} (P: state(c_system S) -> Prop) (f: state(c_system S)): Prop :=
+  forall x: state(c_system S), (has_property x P -> has_property (o1 S f x) (s= c_true S)) /\
+  (~ has_property x P -> has_property (o1 S f x) (s= c_false S)).
+
+Theorem rice: forall S: diagonalizable, forall P: state(d_system S) -> Prop, 
+  (exists t_eg: state(d_system S), has_property t_eg P) ->
+  (exists f_eg: state(d_system S), ~ has_property f_eg P) ->
+  ~ exists f: state(d_system S), decider P f.
+Proof. Abort.
