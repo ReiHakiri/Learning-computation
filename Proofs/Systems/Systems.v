@@ -348,3 +348,54 @@ Proof.
     
   - apply I.
 Qed.
+
+Definition has_property {S: system} (x: state S) (P: state S -> Prop): Prop :=
+  exists x': state S, (exists n: nat, x' = repeat (step S) n x) /\ P x'.
+  
+Definition nontrivial_property {S: system} (P: state S -> Prop): Prop :=
+  (exists t_eg: state S, has_property t_eg P) /\ (exists f_eg: state S, ~ has_property f_eg P).
+
+Definition specific_eq {S: system} (x: state S): state S -> Prop := fun y => y = x.
+
+Notation "'s=' x" := (specific_eq x) (at level 50, left associativity).
+
+Definition reduces_to {S: system} (x y: state S): Prop := exists n: nat, y = repeat (step S) n x.
+
+Notation "x 'R->' y" := (reduces_to x y) (at level 50, left associativity).
+
+Theorem has_property_of_reduces_to: forall S: system, forall x y: state S, x R-> y <-> has_property x (s= y).
+Proof.
+  intros. split.
+  - intros. unfold reduces_to in H. unfold has_property. destruct H as [n H].
+    exists y. split.
+    -- exists n. apply H.
+    -- unfold specific_eq. reflexivity.
+  - intros. unfold has_property in H. unfold reduces_to. destruct H as [x' H]. destruct H. destruct H as [n H].
+    unfold specific_eq in H0. rewrite H0 in H.
+    exists n. apply H.
+Qed.
+
+Record diagonalizable := {
+  d_S: system;
+  d_true: state d_S;
+  d_false: state d_S;
+  d_tf_distinct: d_true <> d_false;
+  C: state d_S -> state d_S -> state d_S -> state d_S;
+  C_correct: 
+    forall x y z: state d_S, x R-> d_true -> (C x y z) R-> y /\
+                             x R-> d_false -> (C x y z ) R-> z;
+  o1: state d_S -> state d_S -> state d_S;
+  o2: state d_S -> state d_S -> state d_S;
+  D := fun f a b x: state d_S => C (o2 f (o1 x x)) a b;
+  D_enc: state d_S -> state d_S -> state d_S -> state d_S -> state d_S;
+  D': state d_S;
+  D'_correct: forall f a b c x: state d_S, (o1 (D_enc D' f a b) x) = D f a b x}.
+
+Definition decider {S: diagonalizable} (f: state (d_S S)) (P: state (d_S S) -> Prop): Prop :=
+  forall x: state (d_S S), 
+  (o2 S) f x R-> d_true S -> P x /\
+  (o2 S) f x R-> d_false S -> P x /\
+  ((o2 S) f x R-> d_true S \/ (o2 S) f x R-> d_false S).
+
+Theorem rice: forall S: diagonalizable, forall P: state (d_S S) -> Prop, nontrivial_property P -> ~ exists f: state (d_S S), decider f P.
+Proof. Abort.
