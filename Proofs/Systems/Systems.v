@@ -363,6 +363,18 @@ Definition reduces_to {S: system} (x y: state S): Prop := exists n: nat, y = rep
 
 Notation "x 'R->' y" := (reduces_to x y) (at level 50, left associativity).
 
+Theorem reduces_to_shares_has_property:
+  forall S: system, forall P: state S -> Prop, forall x y: state S,
+  x R-> y -> has_property y P -> has_property x P.
+Proof.
+  unfold has_property. unfold reduces_to. intros.
+  destruct H as [n H].
+  destruct H0 as [x' H0]. destruct H0. destruct H0 as [m H0].
+  exists x'. split.
+  - exists (m + n). rewrite repeat_add. rewrite <- H. rewrite <- H0. reflexivity.
+  - apply H1.
+Qed.
+
 Theorem has_property_of_reduces_to: forall S: system, forall x y: state S, x R-> y <-> has_property x (s= y).
 Proof.
   intros. split.
@@ -381,21 +393,85 @@ Record diagonalizable := {
   d_false: state d_S;
   d_tf_distinct: d_true <> d_false;
   C: state d_S -> state d_S -> state d_S -> state d_S;
-  C_correct: 
-    forall x y z: state d_S, x R-> d_true -> (C x y z) R-> y /\
-                             x R-> d_false -> (C x y z ) R-> z;
+  C_correct_T: 
+    forall x y z: state d_S, x R-> d_true -> (C x y z) R-> y;
+  C_correct_F:
+    forall x y z: state d_S, x R-> d_false -> (C x y z ) R-> z;
   o1: state d_S -> state d_S -> state d_S;
   o2: state d_S -> state d_S -> state d_S;
-  D := fun f a b x: state d_S => C (o2 f (o1 x x)) a b;
   D_enc: state d_S -> state d_S -> state d_S -> state d_S -> state d_S;
   D': state d_S;
-  D'_correct: forall f a b c x: state d_S, (o1 (D_enc D' f a b) x) = D f a b x}.
+  D := fun f a b x: state d_S => C (o2 f (o1 x x)) a b;
+  D'_correct: forall f a b x: state d_S, (o1 (D_enc D' f a b) x) = D f a b x}.
 
 Definition decider {S: diagonalizable} (f: state (d_S S)) (P: state (d_S S) -> Prop): Prop :=
   forall x: state (d_S S), 
-  (o2 S) f x R-> d_true S -> P x /\
-  (o2 S) f x R-> d_false S -> P x /\
+  ((o2 S) f x R-> d_true S -> has_property x P) /\
+  ((o2 S) f x R-> d_false S -> ~ has_property x P) /\
   ((o2 S) f x R-> d_true S \/ (o2 S) f x R-> d_false S).
 
-Theorem rice: forall S: diagonalizable, forall P: state (d_S S) -> Prop, nontrivial_property P -> ~ exists f: state (d_S S), decider f P.
-Proof. Abort.
+Definition fixed_point {A: Type} (f: A -> A) (x: A): Prop := x = f x.
+
+Definition sys_fixed_point (S: system) (x: state S) := fixed_point (step S) x.
+
+Theorem reduces_to_shares_fixed_point:
+  forall S: system, forall x y: state S,
+  x R-> y -> has_property y (sys_fixed_point S) -> has_property x (sys_fixed_point S).
+Proof.
+  intros. pose proof reduces_to_shares_has_property.
+  specialize (H1 S (sys_fixed_point S) x y). apply H1 in H.
+  - apply H.
+  - apply H0.
+Qed.
+
+Theorem reduces_to_shares_not_fixed_point:
+  forall S: system, forall x y: state S,
+  x R-> y -> ~ has_property y (sys_fixed_point S) -> 
+  ~ has_property x (sys_fixed_point S).
+Proof.
+  intros. unfold not. intros.
+  unfold reduces_to in H. destruct H as [n H].
+  unfold has_property in H1. destruct H1 as [x' [[m H1] H2]].
+Admitted.
+
+Theorem turing:
+  forall S: diagonalizable,
+  nontrivial_property(sys_fixed_point (d_S S)) ->
+  ~ exists f: state (d_S S), decider f(sys_fixed_point (d_S S)).
+Proof.
+  unfold not. intros.
+  unfold nontrivial_property in H. destruct H as [[t_eg H1] [f_eg H2]].
+  destruct H0 as [f H0].
+  
+  set (diagonal := D_enc S (D' S) f f_eg t_eg).
+  set (witness := o1 S diagonal diagonal).
+  
+  unfold decider in H0. specialize (H0 witness).
+  destruct H0 as [H0 [H3 H4]].
+  
+  pose proof (D'_correct S) as diag_correct.
+  
+  destruct H4.
+  
+  - pose proof (C_correct_T S) as cond_correct_T. pose proof H. apply H0 in H.
+  
+    assert (witness R-> f_eg).
+    
+    -- unfold witness. unfold diagonal. rewrite diag_correct.
+       unfold D. fold diagonal. fold witness. apply cond_correct_T. apply H4.
+    -- pose proof reduces_to_shares_not_fixed_point.
+       specialize (H6 (d_S S) witness f_eg). apply H6 in H5.
+       --- apply H5 in H. destruct H.
+       --- apply H2.
+  
+  - pose proof (C_correct_F S) as cond_correct_F. pose proof H. apply H3 in H.
+  
+    assert (witness R-> t_eg).
+    
+    -- unfold witness. unfold diagonal. rewrite diag_correct.
+       unfold D. fold diagonal. fold witness. apply cond_correct_F. apply H4.
+    -- pose proof reduces_to_shares_fixed_point.
+       specialize (H6 (d_S S) witness t_eg). apply H6 in H5.
+       --- apply H in H5. destruct H5.
+       --- apply H1.
+Qed.
