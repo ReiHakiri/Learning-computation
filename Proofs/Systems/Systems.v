@@ -392,23 +392,23 @@ Record diagonalizable := {
   d_true: state d_S;
   d_false: state d_S;
   d_tf_distinct: d_true <> d_false;
-  C: state d_S -> state d_S -> state d_S -> state d_S;
-  C_correct_T: 
-    forall x y z: state d_S, x R-> d_true -> (C x y z) R-> y;
-  C_correct_F:
-    forall x y z: state d_S, x R-> d_false -> (C x y z ) R-> z;
-  o1: state d_S -> state d_S -> state d_S;
-  o2: state d_S -> state d_S -> state d_S;
+  d_C: state d_S -> state d_S -> state d_S -> state d_S;
+  d_C_correct_T: 
+    forall x y z: state d_S, x R-> d_true -> (d_C x y z) R-> y;
+  d_C_correct_F:
+    forall x y z: state d_S, x R-> d_false -> (d_C x y z ) R-> z;
+  d_o1: state d_S -> state d_S -> state d_S;
+  d_o2: state d_S -> state d_S -> state d_S;
   D_enc: state d_S -> state d_S -> state d_S -> state d_S -> state d_S;
   D': state d_S;
-  D := fun f a b x: state d_S => C (o2 f (o1 x x)) a b;
-  D'_correct: forall f a b x: state d_S, (o1 (D_enc D' f a b) x) = D f a b x}.
+  D := fun f a b x: state d_S => d_C (d_o2 f (d_o1 x x)) a b;
+  D'_correct: forall f a b x: state d_S, (d_o1 (D_enc D' f a b) x) = D f a b x}.
 
 Definition decider {S: diagonalizable} (f: state (d_S S)) (P: state (d_S S) -> Prop): Prop :=
   forall x: state (d_S S), 
-  ((o2 S) f x R-> d_true S -> has_property x P) /\
-  ((o2 S) f x R-> d_false S -> ~ has_property x P) /\
-  ((o2 S) f x R-> d_true S \/ (o2 S) f x R-> d_false S).
+  ((d_o2 S) f x R-> d_true S -> has_property x P) /\
+  ((d_o2 S) f x R-> d_false S -> ~ has_property x P) /\
+  ((d_o2 S) f x R-> d_true S \/ (d_o2 S) f x R-> d_false S).
   
 Theorem reduces_to_refl: forall S: system, reflexive(@reduces_to S).
 Proof.
@@ -522,7 +522,7 @@ Proof.
   destruct H0 as [f H0].
   
   set (diagonal := D_enc S (D' S) f f_eg t_eg).
-  set (witness := o1 S diagonal diagonal).
+  set (witness := d_o1 S diagonal diagonal).
   
   unfold decider in H0. specialize (H0 witness).
   destruct H0 as [H0 [H3 H4]].
@@ -531,7 +531,7 @@ Proof.
   
   destruct H4.
   
-  - pose proof (C_correct_T S) as cond_correct_T. pose proof H. apply H0 in H.
+  - pose proof (d_C_correct_T S) as cond_correct_T. pose proof H. apply H0 in H.
   
     assert (witness R-> f_eg).
     
@@ -542,7 +542,7 @@ Proof.
        --- apply H5 in H. destruct H.
        --- apply H2.
   
-  - pose proof (C_correct_F S) as cond_correct_F. pose proof H. apply H3 in H.
+  - pose proof (d_C_correct_F S) as cond_correct_F. pose proof H. apply H3 in H.
   
     assert (witness R-> t_eg).
     
