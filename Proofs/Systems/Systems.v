@@ -410,6 +410,9 @@ Definition d_decider {S: diagonalizable} (f: state (d_S S)) (P: state (d_S S) ->
   ((d_o2 S) f x R-> d_false S -> ~ has_property x P) /\
   ((d_o2 S) f x R-> d_true S \/ (d_o2 S) f x R-> d_false S).
   
+Definition d_decidable {S: diagonalizable} (P: state(d_S S) -> Prop): Prop :=
+  exists f: state(d_S S), d_decider f P.
+  
 Theorem reduces_to_refl: forall S: system, reflexive(@reduces_to S).
 Proof.
   unfold reflexive. intros. unfold reduces_to. exists 0. simpl. reflexivity.
@@ -515,9 +518,10 @@ Qed.
 Theorem turing:
   forall S: diagonalizable,
   nontrivial_property(sys_fixed_point (d_S S)) ->
-  ~ exists f: state (d_S S), d_decider f(sys_fixed_point (d_S S)).
+  ~ d_decidable(sys_fixed_point (d_S S)).
 Proof.
   unfold not. intros.
+  unfold d_decidable in H0.
   unfold nontrivial_property in H. destruct H as [[t_eg H1] [f_eg H2]].
   destruct H0 as [f H0].
   
@@ -577,11 +581,15 @@ Definition r_decider {S: rice_extendable}
   ((r_o2 S) f x R-> r_false S -> ~ has_property x P) /\
   ((r_o2 S) f x R-> r_true S \/ (r_o2 S) f x R-> r_false S).
 
-Theorem rice: forall S: rice_extendable,
+Definition r_decidable {S: rice_extendable} (P: state (r_S S) -> Prop): Prop :=
+  exists f: state(r_S S), r_decider f P.
+
+Theorem rice: forall S: rice_extendable, ~ r_decidable(sys_fixed_point(r_S S)) ->
   forall P: state(r_S S) -> Prop, nontrivial_property P ->
-  ~ exists f: state(r_S S), r_decider f P.
+  ~ r_decidable P.
 Proof.
   unfold not. intros.
-  unfold nontrivial_property in H. destruct H as [[t_eg H1] [f_eg H2]].
-  destruct H0 as [f H0].
+  unfold r_decidable in H0.
+  unfold nontrivial_property in H0. destruct H0 as [[t_eg H2] [f_eg H3]].
+  destruct H1 as [f H1].
 Abort.
