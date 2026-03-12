@@ -404,7 +404,7 @@ Record diagonalizable := {
   D := fun f a b x: state d_S => d_C (d_o2 f (d_o1 x x)) a b;
   D'_correct: forall f a b x: state d_S, (d_o1 (D_enc D' f a b) x) = D f a b x}.
 
-Definition decider {S: diagonalizable} (f: state (d_S S)) (P: state (d_S S) -> Prop): Prop :=
+Definition d_decider {S: diagonalizable} (f: state (d_S S)) (P: state (d_S S) -> Prop): Prop :=
   forall x: state (d_S S), 
   ((d_o2 S) f x R-> d_true S -> has_property x P) /\
   ((d_o2 S) f x R-> d_false S -> ~ has_property x P) /\
@@ -515,7 +515,7 @@ Qed.
 Theorem turing:
   forall S: diagonalizable,
   nontrivial_property(sys_fixed_point (d_S S)) ->
-  ~ exists f: state (d_S S), decider f(sys_fixed_point (d_S S)).
+  ~ exists f: state (d_S S), d_decider f(sys_fixed_point (d_S S)).
 Proof.
   unfold not. intros.
   unfold nontrivial_property in H. destruct H as [[t_eg H1] [f_eg H2]].
@@ -524,7 +524,7 @@ Proof.
   set (diagonal := D_enc S (D' S) f f_eg t_eg).
   set (witness := d_o1 S diagonal diagonal).
   
-  unfold decider in H0. specialize (H0 witness).
+  unfold d_decider in H0. specialize (H0 witness).
   destruct H0 as [H0 [H3 H4]].
   
   pose proof (D'_correct S) as diag_correct.
@@ -553,3 +553,35 @@ Proof.
        --- apply H in H5. destruct H5.
        --- apply H1.
 Qed.
+
+Record rice_extendable: Type := {
+  r_S: system;
+  r_true: state r_S;
+  r_false: state r_S;
+  r_tf_distinct: r_true <> r_false;
+  r_C: state r_S -> state r_S -> state r_S -> state r_S;
+  r_C_correct_T: 
+    forall x y z: state r_S, x R-> r_true -> (r_C x y z) R-> y;
+  r_C_correct_F: 
+    forall x y z: state r_S, x R-> r_false -> (r_C x y z) R-> z;
+  r_o2: state r_S -> state r_S -> state r_S;
+  r_H_semi: state r_S;
+  r_H_semi_correct:
+    forall x: state r_S, 
+    (r_o2 r_H_semi x R-> r_true <-> sys_fixed_point r_S x)}.
+
+Definition r_decider {S: rice_extendable}
+  (f: state (r_S S)) (P: state (r_S S) -> Prop): Prop :=
+  forall x: state (r_S S),
+  ((r_o2 S) f x R-> r_true S -> has_property x P) /\
+  ((r_o2 S) f x R-> r_false S -> ~ has_property x P) /\
+  ((r_o2 S) f x R-> r_true S \/ (r_o2 S) f x R-> r_false S).
+
+Theorem rice: forall S: rice_extendable,
+  forall P: state(r_S S) -> Prop, nontrivial_property P ->
+  ~ exists f: state(r_S S), r_decider f P.
+Proof.
+  unfold not. intros.
+  unfold nontrivial_property in H. destruct H as [[t_eg H1] [f_eg H2]].
+  destruct H0 as [f H0].
+Abort.
