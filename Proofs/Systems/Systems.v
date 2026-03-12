@@ -409,6 +409,26 @@ Definition decider {S: diagonalizable} (f: state (d_S S)) (P: state (d_S S) -> P
   ((o2 S) f x R-> d_true S -> has_property x P) /\
   ((o2 S) f x R-> d_false S -> ~ has_property x P) /\
   ((o2 S) f x R-> d_true S \/ (o2 S) f x R-> d_false S).
+  
+Theorem reduces_to_refl: forall S: system, reflexive(@reduces_to S).
+Proof.
+  unfold reflexive. intros. unfold reduces_to. exists 0. simpl. reflexivity.
+Qed.
+
+Theorem reduces_to_trans: forall S: system, transitive(@reduces_to S).
+Proof.
+  unfold transitive. unfold reduces_to. intros.
+  destruct H as [n H]. destruct H0 as [m H0].
+  exists (m + n).
+  rewrite repeat_add. rewrite <- H. apply H0.
+Qed.
+
+Theorem reduces_to_preorder: forall S: system, preorder (@reduces_to S).
+Proof.
+  unfold preorder. intros. split.
+  - apply reduces_to_refl.
+  - apply reduces_to_trans.
+Qed.
 
 Definition fixed_point {A: Type} (f: A -> A) (x: A): Prop := x = f x.
 
@@ -424,15 +444,73 @@ Proof.
   - apply H0.
 Qed.
 
+Theorem repeat_comm: forall X: Type, forall f: X -> X, forall n m: nat, forall x: X, repeat f n (repeat f m x) = repeat f m (repeat f n x).
+Proof.
+  intros. rewrite <- repeat_add. rewrite Nat.add_comm. rewrite repeat_add. reflexivity.
+Qed.
+
+Theorem repeat_comm_single: forall X: Type, forall f: X -> X, forall n: nat, forall x: X, f(repeat f n x) = repeat f n (f x).
+Proof.
+  intros. replace f with (repeat f 1).
+  - rewrite repeat_comm. simpl. reflexivity.
+  - simpl. reflexivity.
+Qed.
+
+Theorem fixed_point_stops: forall X: Type, forall f: X -> X, forall x: X, fixed_point f x -> forall n: nat, repeat f n x = x.
+Proof.
+  intros. induction n.
+  - simpl. reflexivity.
+  - simpl. rewrite repeat_comm_single. rewrite <- H. apply IHn.
+Qed.
+
+Theorem fixed_point_reduces_to: forall S: system, forall x: state S, fixed_point (step S) x -> forall y: state S, x R-> y -> x = y.
+Proof.
+  intros. unfold reduces_to in H0. destruct H0 as [n H0].
+  rewrite H0. rewrite fixed_point_stops.
+  - reflexivity.
+  - apply H.
+Qed.
+
+Theorem system_confluence: forall S: system, forall x y z: state S, x R-> y -> x R-> z -> (exists a: state S, y R-> a /\ z R-> a).
+Proof.
+  unfold reduces_to. intros.
+  destruct H as [n H]. destruct H0 as [m H0].
+  destruct (n <=? m) eqn:E.
+  - apply Nat.leb_le in E.
+    exists z. split.
+    -- exists (m - n). rewrite H. rewrite <- repeat_add. rewrite Nat.sub_add.
+      --- apply H0.
+      --- apply E.
+    -- exists 0. simpl. reflexivity.
+  - apply Nat.leb_gt in E. apply Nat.lt_le_incl in E.
+    exists y. split.
+    -- exists 0. simpl. reflexivity.
+    -- exists (n - m). rewrite H0. rewrite <- repeat_add. rewrite Nat.sub_add.
+      --- apply H.
+      --- apply E.
+Qed.
+
 Theorem reduces_to_shares_not_fixed_point:
   forall S: system, forall x y: state S,
   x R-> y -> ~ has_property y (sys_fixed_point S) -> 
   ~ has_property x (sys_fixed_point S).
 Proof.
   intros. unfold not. intros.
-  unfold reduces_to in H. destruct H as [n H].
   unfold has_property in H1. destruct H1 as [x' [[m H1] H2]].
-Admitted.
+  assert (x R-> x').
+  - unfold reduces_to. exists m. apply H1.
+  - pose proof system_confluence. specialize (H4 S x y x'). specialize (H4 H H3).
+    destruct H4 as [a H4]. destruct H4. apply fixed_point_reduces_to in H5 as H6.
+    -- assert (a R-> x').
+      --- rewrite H6. apply reduces_to_refl.
+      --- pose proof reduces_to_trans. unfold transitive in H8. specialize (H8 S y a x' H4 H7).
+          assert (has_property y (sys_fixed_point S)).
+          ---- unfold has_property. exists x'. split.
+            ----- unfold reduces_to in H8. destruct H8 as [n H8]. exists n. apply H8.
+            ----- apply H2.
+          ---- apply H0 in H9. destruct H9.
+    -- unfold sys_fixed_point in H2. apply H2.
+Qed.
 
 Theorem turing:
   forall S: diagonalizable,
