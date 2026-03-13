@@ -412,7 +412,53 @@ Definition d_decider {S: diagonalizable} (f: state (d_S S)) (P: state (d_S S) ->
   
 Definition d_decidable {S: diagonalizable} (P: state(d_S S) -> Prop): Prop :=
   exists f: state(d_S S), d_decider f P.
+
+Definition downward_closed_property {S: system} (P: state S -> Prop): Prop :=
+  forall x y: state S, x R-> y -> has_property x P -> has_property y P.
   
+Theorem turing:
+  forall S: diagonalizable, forall P: state (d_S S) -> Prop,
+  nontrivial_property P -> downward_closed_property P ->
+  ~ d_decidable P.
+Proof.
+  unfold not. intros.
+  unfold d_decidable in H0.
+  unfold nontrivial_property in H. destruct H as [[t_eg H2] [f_eg H3]].
+  destruct H1 as [f H4].
+  
+  set (diagonal := D_enc S (D' S) f f_eg t_eg).
+  set (witness := d_o1 S diagonal diagonal).
+  
+  unfold d_decider in H4. specialize (H4 witness).
+  destruct H4 as [H4 [H5 H6]].
+  
+  pose proof (D'_correct S) as diag_correct.
+  
+  destruct H6.
+  
+  - pose proof (d_C_correct_T S) as cond_correct_T. pose proof H. apply H4 in H.
+  
+    assert (witness R-> f_eg).
+    
+    -- unfold witness. unfold diagonal. rewrite diag_correct.
+       unfold D. fold diagonal. fold witness. apply cond_correct_T. apply H1.
+    -- unfold downward_closed_property in H0. specialize (H0 witness f_eg H6).
+       apply contrapositive in H0.
+       --- apply H0 in H. destruct H.
+       --- apply H3.
+  
+  - pose proof (d_C_correct_F S) as cond_correct_F. pose proof H. apply H5 in H.
+  
+    assert (witness R-> t_eg).
+    
+    -- unfold witness. unfold diagonal. rewrite diag_correct.
+       unfold D. fold diagonal. fold witness. apply cond_correct_F. apply H1.
+    -- pose proof reduces_to_shares_has_property.
+       specialize (H7 (d_S S) P0 witness t_eg). apply H7 in H6.
+       --- apply H in H6. destruct H6.
+       --- apply H2.
+Qed.
+
 Theorem reduces_to_refl: forall S: system, reflexive(@reduces_to S).
 Proof.
   unfold reflexive. intros. unfold reduces_to. exists 0. simpl. reflexivity.
@@ -466,7 +512,7 @@ Proof.
   - simpl. rewrite repeat_comm_single. rewrite <- H. apply IHn.
 Qed.
 
-Theorem fixed_point_reduces_to: forall S: system, forall x: state S, fixed_point (step S) x -> forall y: state S, x R-> y -> x = y.
+Theorem fixed_point_reduces_to: forall S: system, forall x: state S, sys_fixed_point S x -> forall y: state S, x R-> y -> x = y.
 Proof.
   intros. unfold reduces_to in H0. destruct H0 as [n H0].
   rewrite H0. rewrite fixed_point_stops.
@@ -493,103 +539,26 @@ Proof.
       --- apply E.
 Qed.
 
-Theorem reduces_to_shares_not_fixed_point:
-  forall S: system, forall x y: state S,
-  x R-> y -> ~ has_property y (sys_fixed_point S) -> 
-  ~ has_property x (sys_fixed_point S).
+Theorem fixed_point_downward_closed: forall S: system, downward_closed_property(sys_fixed_point S).
 Proof.
-  intros. unfold not. intros.
-  unfold has_property in H1. destruct H1 as [x' [[m H1] H2]].
-  assert (x R-> x').
-  - unfold reduces_to. exists m. apply H1.
-  - pose proof system_confluence. specialize (H4 S x y x'). specialize (H4 H H3).
-    destruct H4 as [a H4]. destruct H4. apply fixed_point_reduces_to in H5 as H6.
-    -- assert (a R-> x').
-      --- rewrite H6. apply reduces_to_refl.
-      --- pose proof reduces_to_trans. unfold transitive in H8. specialize (H8 S y a x' H4 H7).
-          assert (has_property y (sys_fixed_point S)).
-          ---- unfold has_property. exists x'. split.
-            ----- unfold reduces_to in H8. destruct H8 as [n H8]. exists n. apply H8.
-            ----- apply H2.
-          ---- apply H0 in H9. destruct H9.
-    -- unfold sys_fixed_point in H2. apply H2.
+  unfold downward_closed_property. unfold has_property. intros.
+  destruct H0 as [x' [[n H0] H1]].
+  exists x'. split.
+  - assert (x R-> x').
+    -- unfold reduces_to. exists n. apply H0.
+    -- pose proof system_confluence. specialize (H3 S x y x' H H2). destruct H3 as [a [H3 H4]].
+       pose proof fixed_point_reduces_to. specialize (H5 S x' H1 a H4).
+       rewrite <- H5 in H3. unfold reduces_to in H3. destruct H3 as [m H3].
+       exists m. apply H3.
+  - apply H1.
 Qed.
 
-Theorem turing:
-  forall S: diagonalizable,
-  nontrivial_property(sys_fixed_point (d_S S)) ->
-  ~ d_decidable(sys_fixed_point (d_S S)).
+Theorem fixed_point_undecidability: forall S: diagonalizable,
+  nontrivial_property(sys_fixed_point(d_S S)) ->
+  ~ d_decidable(sys_fixed_point(d_S S)).
 Proof.
-  unfold not. intros.
-  unfold d_decidable in H0.
-  unfold nontrivial_property in H. destruct H as [[t_eg H1] [f_eg H2]].
-  destruct H0 as [f H0].
-  
-  set (diagonal := D_enc S (D' S) f f_eg t_eg).
-  set (witness := d_o1 S diagonal diagonal).
-  
-  unfold d_decider in H0. specialize (H0 witness).
-  destruct H0 as [H0 [H3 H4]].
-  
-  pose proof (D'_correct S) as diag_correct.
-  
-  destruct H4.
-  
-  - pose proof (d_C_correct_T S) as cond_correct_T. pose proof H. apply H0 in H.
-  
-    assert (witness R-> f_eg).
-    
-    -- unfold witness. unfold diagonal. rewrite diag_correct.
-       unfold D. fold diagonal. fold witness. apply cond_correct_T. apply H4.
-    -- pose proof reduces_to_shares_not_fixed_point.
-       specialize (H6 (d_S S) witness f_eg). apply H6 in H5.
-       --- apply H5 in H. destruct H.
-       --- apply H2.
-  
-  - pose proof (d_C_correct_F S) as cond_correct_F. pose proof H. apply H3 in H.
-  
-    assert (witness R-> t_eg).
-    
-    -- unfold witness. unfold diagonal. rewrite diag_correct.
-       unfold D. fold diagonal. fold witness. apply cond_correct_F. apply H4.
-    -- pose proof reduces_to_shares_fixed_point.
-       specialize (H6 (d_S S) witness t_eg). apply H6 in H5.
-       --- apply H in H5. destruct H5.
-       --- apply H1.
+  intros. pose proof turing. specialize (H0 S (sys_fixed_point(d_S S)) H).
+  assert (downward_closed_property(sys_fixed_point(d_S S))).
+  - apply fixed_point_downward_closed.
+  - apply H0 in H1. apply H1.
 Qed.
-
-Record rice_extendable: Type := {
-  r_S: system;
-  r_true: state r_S;
-  r_false: state r_S;
-  r_tf_distinct: r_true <> r_false;
-  r_C: state r_S -> state r_S -> state r_S -> state r_S;
-  r_C_correct_T: 
-    forall x y z: state r_S, x R-> r_true -> (r_C x y z) R-> y;
-  r_C_correct_F: 
-    forall x y z: state r_S, x R-> r_false -> (r_C x y z) R-> z;
-  r_o2: state r_S -> state r_S -> state r_S;
-  r_H_semi: state r_S;
-  r_H_semi_correct:
-    forall x: state r_S, 
-    (r_o2 r_H_semi x R-> r_true <-> sys_fixed_point r_S x)}.
-
-Definition r_decider {S: rice_extendable}
-  (f: state (r_S S)) (P: state (r_S S) -> Prop): Prop :=
-  forall x: state (r_S S),
-  ((r_o2 S) f x R-> r_true S -> has_property x P) /\
-  ((r_o2 S) f x R-> r_false S -> ~ has_property x P) /\
-  ((r_o2 S) f x R-> r_true S \/ (r_o2 S) f x R-> r_false S).
-
-Definition r_decidable {S: rice_extendable} (P: state (r_S S) -> Prop): Prop :=
-  exists f: state(r_S S), r_decider f P.
-
-Theorem rice: forall S: rice_extendable, ~ r_decidable(sys_fixed_point(r_S S)) ->
-  forall P: state(r_S S) -> Prop, nontrivial_property P ->
-  ~ r_decidable P.
-Proof.
-  unfold not. intros.
-  unfold r_decidable in H0.
-  unfold nontrivial_property in H0. destruct H0 as [[t_eg H2] [f_eg H3]].
-  destruct H1 as [f H1].
-Abort.
