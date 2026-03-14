@@ -562,3 +562,47 @@ Proof.
   - apply fixed_point_downward_closed.
   - apply H0 in H1. apply H1.
 Qed.
+
+Record function_simulation {Q A Q' A': Type} (f: Q -> A) (g: Q' -> A'): Type := {
+  Q_sub: Q -> Prop;
+  A_sub: A -> Prop;
+  fs_h1: Q -> Q';
+  fs_h2: A -> A';
+  fs_h1_invertible: image_invertible fs_h1 Q_sub;
+  fs_h2_invertible: image_invertible fs_h2 A_sub;
+  fs_correct: forall x: Q, Q_sub x -> fs_h2(f x) = g(fs_h1 x)}.
+  
+Definition can_function_simulate {Q A Q' A': Type} (f: Q -> A) (g: Q' -> A'): Prop := exists F: function_simulation f g, True.
+
+Notation "x >- y" := (can_function_simulate x y) (at level 50, left associativity).
+
+Theorem can_function_simulate_shares_implementation:
+  forall S: system, forall Q A Q' A': Type, forall f: Q -> A, forall g: Q' -> A', S ! f -> f >- g -> S ! g.
+Proof.
+  intros. destruct H as [M H]. destruct H0 as [N H0].
+  clear H. clear H0. destruct M. destruct N.
+  
+  unfold can_solve. eexists.
+  - refine ({|
+    P1 := fun x => P3 x /\ Q_sub0(h3 x);
+    P2 := fun x => P4 x /\ A_sub0(h4 x);
+    h1 := fun x => fs_h3(h3 x);
+    h2 := fun x => fs_h4(h4 x);
+    s := s0;
+    invertible_enc1 := _;
+    invertible_enc2 := _;
+    correct := _ |}).
+    
+    -- apply two_image_invertible.
+      --- apply invertible_enc3.
+      --- apply fs_h1_invertible0.
+    -- apply two_image_invertible.
+      --- apply invertible_enc4.
+      --- apply fs_h2_invertible0.
+      
+    -- intros. destruct H. rewrite correct0. rewrite fs_correct0.
+       reflexivity.
+       apply H0. apply H.
+       
+  - apply I.
+Qed.
