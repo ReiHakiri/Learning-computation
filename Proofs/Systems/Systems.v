@@ -618,13 +618,13 @@ Definition decider {A: Type} (f: A -> decision) (P: A -> Prop): Prop :=
   (~ P x -> f x = reject) /\
   (f x = accept \/ f x = reject).
 
-Definition decidable {A: Type} (P: A -> Prop): Prop := exists f: A -> decision, decider f P.
+Definition recursive {A: Type} (P: A -> Prop): Prop := exists f: A -> decision, decider f P.
 
 Definition semi_decider {A: Type} (f: A -> decision) (P: A -> Prop): Prop :=
   forall x: A, P x <-> f x = accept.
 
-Definition semi_decidable {A: Type} (f: A -> decision) (P: A -> Prop): Prop := exists f: A -> decision, semi_decider f P.
+Definition recursively_enumerable {A: Type} (P: A -> Prop): Prop := exists f: A -> decision, semi_decider f P.
 
 Definition co_property {A: Type} (P: A -> Prop) (a: A): Prop := ~ P a.
 
-Definition co_semi_decidable {A: Type} (f: A -> decision) (P: A -> Prop): Prop := exists f: A -> decision, semi_decider f (co_property P).
+Definition co_recusively_enumerable {A: Type} (P: A -> Prop): Prop := exists f: A -> decision, semi_decider f (co_property P).
