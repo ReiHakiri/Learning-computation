@@ -627,4 +627,4 @@ Definition recursively_enumerable {A: Type} (P: A -> Prop): Prop := exists f: A 
 
 Definition co_property {A: Type} (P: A -> Prop) (a: A): Prop := ~ P a.
 
-Definition co_recusively_enumerable {A: Type} (P: A -> Prop): Prop := exists f: A -> decision, semi_decider f (co_property P).
+Definition co_recursively_enumerable {A: Type} (P: A -> Prop): Prop := exists f: A -> decision, semi_decider f (co_property P).
