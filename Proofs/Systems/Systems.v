@@ -260,7 +260,7 @@ Proof.
     -- apply H2.
     -- apply H1.
    
-  - apply I. 
+  - apply I.
 Qed.
 
 Theorem can_simulate_preorder: preorder can_simulate.
@@ -604,5 +604,59 @@ Proof.
        reflexivity.
        apply H0. apply H.
        
+  - apply I.
+Qed.
+
+Theorem id_image_invertible: forall A: Type, image_invertible (fun x: A => x) (fun x: A => True).
+Proof.
+  intros. unfold image_invertible.
+  exists (fun x: A => x). split.
+  - intros. reflexivity.
+  - intros. split.
+    -- apply I.
+    -- reflexivity.
+Qed.
+
+Theorem can_function_simulate_reflexive:
+  forall Q A: Type, forall f: Q -> A, f >- f.
+Proof.
+  intros. eexists.
+  refine ({|
+  Q_sub := fun x => True;
+  A_sub := fun x => True;
+  fs_h1 := fun x => x;
+  fs_h2 := fun x => x;
+  fs_correct := _ |}).
+  
+  - apply id_image_invertible.
+  - apply id_image_invertible.
+  - intros. reflexivity.
+  - apply I.
+Qed.
+
+Theorem can_function_simulate_transitive:
+  forall Q A Q' A' Q'' A'': Type, forall f: Q -> A, forall g: Q' -> A', forall h: Q'' -> A'',
+  f >- g -> g >- h -> f >- h.
+Proof.
+  intros. destruct H as [M H]. destruct H. destruct H0 as [N H]. destruct H.
+  destruct M. destruct N.
+  eexists.
+  refine ({|
+  Q_sub := fun x => Q_sub0 x /\ Q_sub1(fs_h3 x);
+  A_sub := fun x => A_sub0 x /\ A_sub1(fs_h4 x);
+  fs_h1 := fun x => fs_h5(fs_h3 x);
+  fs_h2 := fun x => fs_h6(fs_h4 x);
+  fs_correct := _ |}).
+  - apply two_image_invertible.
+    -- apply fs_h1_invertible0.
+    -- apply fs_h1_invertible1.
+  - apply two_image_invertible.
+    -- apply fs_h2_invertible0.
+    -- apply fs_h2_invertible1.
+  - intros. destruct H.
+    rewrite fs_correct0. rewrite fs_correct1.
+    -- reflexivity.
+    -- apply H0.
+    -- apply H.
   - apply I.
 Qed.
