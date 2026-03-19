@@ -660,3 +660,9 @@ Proof.
     -- apply H.
   - apply I.
 Qed.
+
+Record universal_bin_op: Type := {
+  u_S: system;
+  u_o: state u_S -> state u_S -> state u_S;
+  o_implementable: forall p: state u_S, u_S ! u_o p;
+  u_correct: forall A B: Type, forall f: A -> B, u_S ! f -> exists p: state u_S, u_o p >- f}.
