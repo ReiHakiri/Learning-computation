@@ -687,3 +687,36 @@ Proof.
     -- apply (o_implementable S).
     -- apply H.
 Qed.
+
+Theorem invertible_extends_implementation_l:
+  forall S: system, forall A B B': Type, forall f: A -> B, S ! f -> forall g: B -> B', image_invertible g (fun x => True) -> S ! (fun x => g(f x)).
+Proof.
+  intros. destruct H. destruct x. destruct H. destruct H0 as [inv_g [H0 H1]].
+  eexists.
+  - refine ({|
+    P1 := P3;
+    P2 := fun x => P4 x;
+    h1 := h3;
+    h2 := fun x => g(h4 x);
+    s := s0;
+    invertible_enc1 := _;
+    invertible_enc2 := _;
+    correct := _ |}).
+    -- apply invertible_enc3.
+    -- unfold image_invertible.
+       destruct invertible_enc4 as [inv_h4 [H2 H3]].
+       exists (fun x => inv_h4(inv_g x)). split.
+       --- intros. rewrite H0. rewrite H2. reflexivity.
+         ---- apply H.
+         ---- apply I.
+       --- intros. split.
+         ---- apply H3.
+         ---- specialize (H3 (inv_g y)). destruct H3. rewrite H3.
+              specialize (H1 y). destruct H1. apply H4.
+    -- intros. rewrite correct0. reflexivity. apply H.
+  - apply I.
+Qed.
+
+Theorem invertible_extends_can_function_simulate_l:
+  forall A B C D D': Type, forall f: A -> B, forall g: C -> D, forall h: D -> D', f >- g -> f >- (fun x => h(g x)).
+Proof. Abort.
