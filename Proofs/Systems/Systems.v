@@ -688,14 +688,43 @@ Proof.
     -- apply H.
 Qed.
 
+Theorem image_invertible_P_ext:
+  forall A B: Type, forall f: A -> B, forall P: A -> Prop, image_invertible f P ->
+  forall P': A -> Prop, (forall x: A, P x <-> P' x) -> image_invertible f P'.
+Proof.
+  intros. destruct H as [inv_f [H1 H2]].
+  exists inv_f. split.
+  - intros. apply H0 in H. apply H1 in H. apply H.
+  - intros. split.
+    -- specialize (H2 y). destruct H2. apply H0 in H. apply H.
+    -- specialize (H2 y). destruct H2. apply H2.
+Qed.
+
+Theorem image_invertible_comp:
+  forall A B C: Type, forall f: A -> B, forall P: A -> Prop, image_invertible f P ->
+  forall g: B -> C, image_invertible g (fun x => True) -> image_invertible (fun x => g(f x)) P.
+Proof.
+  intros.
+  pose proof two_image_invertible.
+  specialize (H1 A B C P0 (fun x => True) f g H H0).
+  assert (forall x: A, ((fun x: A => P0 x /\ (fun _ : B => True) (f x)) x) <-> P0 x).
+  - intros. split.
+    -- intros. destruct H2. apply H2.
+    -- intros. split.
+      --- apply H2.
+      --- apply I.
+  - pose proof image_invertible_P_ext. specialize (H3 A C (fun x => g(f x)) ((fun x: A => P0 x /\ (fun _ : B => True) (f x))) H1 P0 H2).
+    apply H3.
+Qed.
+
 Theorem invertible_extends_implementation_l:
   forall S: system, forall A B B': Type, forall f: A -> B, S ! f -> forall g: B -> B', image_invertible g (fun x => True) -> S ! (fun x => g(f x)).
 Proof.
-  intros. destruct H. destruct x. destruct H. destruct H0 as [inv_g [H0 H1]].
+  intros. destruct H. destruct x. destruct H.
   eexists.
   - refine ({|
     P1 := P3;
-    P2 := fun x => P4 x;
+    P2 := P4;
     h1 := h3;
     h2 := fun x => g(h4 x);
     s := s0;
@@ -703,20 +732,29 @@ Proof.
     invertible_enc2 := _;
     correct := _ |}).
     -- apply invertible_enc3.
-    -- unfold image_invertible.
-       destruct invertible_enc4 as [inv_h4 [H2 H3]].
-       exists (fun x => inv_h4(inv_g x)). split.
-       --- intros. rewrite H0. rewrite H2. reflexivity.
-         ---- apply H.
-         ---- apply I.
-       --- intros. split.
-         ---- apply H3.
-         ---- specialize (H3 (inv_g y)). destruct H3. rewrite H3.
-              specialize (H1 y). destruct H1. apply H4.
+    -- apply image_invertible_comp.
+      --- apply invertible_enc4.
+      --- apply H0.
     -- intros. rewrite correct0. reflexivity. apply H.
   - apply I.
 Qed.
 
 Theorem invertible_extends_can_function_simulate_l:
-  forall A B C D D': Type, forall f: A -> B, forall g: C -> D, forall h: D -> D', f >- g -> f >- (fun x => h(g x)).
-Proof. Abort.
+  forall A B C D D': Type, forall f: A -> B, forall g: C -> D, f >- g -> forall h: D -> D', image_invertible h (fun x => True) -> f >- (fun x => h(g x)).
+Proof.
+  intros. destruct H. destruct x.
+  eexists.
+  - refine ({|
+    Q_sub := Q_sub0;
+    A_sub := A_sub0;
+    fs_h1 := fs_h3;
+    fs_h2 := fun x => h0(fs_h4 x);
+    fs_h1_invertible := fs_h1_invertible0;
+    fs_h2_invertible := _;
+    fs_correct := _ |}).
+    -- apply image_invertible_comp.
+      --- apply fs_h2_invertible0.
+      --- apply H0.
+    -- intros. rewrite fs_correct0. reflexivity. apply H1.
+  - apply I.
+Qed.
