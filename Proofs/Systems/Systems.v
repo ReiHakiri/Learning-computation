@@ -387,22 +387,21 @@ Proof.
     exists n. apply H.
 Qed.
 
-Record diagonalizable := {
-  d_S: system;
-  d_true: state d_S;
-  d_false: state d_S;
+Record diagonalizable (S: system) := {
+  d_true: state S;
+  d_false: state S;
   d_tf_distinct: d_true <> d_false;
-  d_C: state d_S -> state d_S -> state d_S -> state d_S;
+  d_C: state S -> state S -> state S -> state S;
   d_C_correct_T: 
-    forall x y z: state d_S, x R-> d_true -> (d_C x y z) R-> y;
+    forall x y z: state S, x R-> d_true -> (d_C x y z) R-> y;
   d_C_correct_F:
-    forall x y z: state d_S, x R-> d_false -> (d_C x y z ) R-> z;
-  d_o1: state d_S -> state d_S -> state d_S;
-  d_o2: state d_S -> state d_S -> state d_S;
-  D_enc: state d_S -> state d_S -> state d_S -> state d_S -> state d_S;
-  D': state d_S;
-  D := fun f a b x: state d_S => d_C (d_o2 f (d_o1 x x)) a b;
-  D'_correct: forall f a b x: state d_S, (d_o1 (D_enc D' f a b) x) = D f a b x}.
+    forall x y z: state S, x R-> d_false -> (d_C x y z ) R-> z;
+  d_o1: state S -> state S -> state S;
+  d_o2: state S -> state S -> state S;
+  D_enc: state S -> state S -> state S -> state S -> state S;
+  D': state S;
+  D := fun f a b x: state S => d_C (d_o2 f (d_o1 x x)) a b;
+  D'_correct: forall f a b x: state S, (d_o1 (D_enc D' f a b) x) = D f a b x}.
 
 Definition decider {S: system} (o: state S -> state S -> state S) (P: state S -> Prop) (t_state f_state p: state S): Prop :=
   forall x: state S,
@@ -414,24 +413,24 @@ Definition decider {S: system} (o: state S -> state S -> state S) (P: state S ->
 Definition decidable {S: system} (o: state S -> state S -> state S) (P: state S -> Prop) (t_state f_state: state S): Prop :=
   exists p: state S, decider o P t_state f_state p.
 
-Definition d_decidable {S: diagonalizable} (P: state(d_S S) -> Prop): Prop :=
-  decidable (d_o2 S) P (d_true S) (d_false S).
+Definition d_decidable {S: system} (d: diagonalizable S) (P: state S -> Prop): Prop :=
+  decidable (d_o2 S d) P (d_true S d) (d_false S d).
 
 Definition downward_closed_property {S: system} (P: state S -> Prop): Prop :=
   forall x y: state S, x R-> y -> has_property x P -> has_property y P.
   
 Theorem turing:
-  forall S: diagonalizable, forall P: state (d_S S) -> Prop,
+  forall S: system, forall d: diagonalizable S, forall P: state S -> Prop,
   nontrivial_property P -> downward_closed_property P ->
-  ~ d_decidable P.
+  ~ d_decidable d P.
 Proof.
   unfold not. intros.
   unfold d_decidable in H0.
   unfold nontrivial_property in H. destruct H as [[t_eg H2] [f_eg H3]].
   destruct H1 as [f H4].
   
-  set (diagonal := D_enc S (D' S) f f_eg t_eg).
-  set (witness := d_o1 S diagonal diagonal).
+  set (diagonal := D_enc S d (D' S d) f f_eg t_eg).
+  set (witness := d_o1 S d diagonal diagonal).
   
   unfold decider in H4. specialize (H4 witness).
   destruct H4 as [Hd [H4 [H5 H6]]]. destruct Hd.
@@ -458,7 +457,7 @@ Proof.
     -- unfold witness. unfold diagonal. rewrite diag_correct.
        unfold D. fold diagonal. fold witness. apply cond_correct_F. apply H1.
     -- pose proof reduces_to_shares_has_property.
-       specialize (H7 (d_S S) P0 witness t_eg). apply H7 in H6.
+       specialize (H7 S P0 witness t_eg). apply H7 in H6.
        --- apply H in H6. destruct H6.
        --- apply H2.
 Qed.
@@ -557,12 +556,12 @@ Proof.
   - apply H1.
 Qed.
 
-Theorem fixed_point_undecidability: forall S: diagonalizable,
-  nontrivial_property(sys_fixed_point(d_S S)) ->
-  ~ d_decidable(sys_fixed_point(d_S S)).
+Theorem fixed_point_undecidability: forall S: system, forall d: diagonalizable S,
+  nontrivial_property(sys_fixed_point S) ->
+  ~ d_decidable d (sys_fixed_point S).
 Proof.
-  intros. pose proof turing. specialize (H0 S (sys_fixed_point(d_S S)) H).
-  assert (downward_closed_property(sys_fixed_point(d_S S))).
+  intros. pose proof turing. specialize (H0 S d (sys_fixed_point S) H).
+  assert (downward_closed_property(sys_fixed_point S)).
   - apply fixed_point_downward_closed.
   - apply H0 in H1. apply H1.
 Qed.
@@ -665,24 +664,23 @@ Proof.
   - apply I.
 Qed.
 
-Record universalizable: Type := {
-  u_S: system;
+Record universalizable (u_S: system): Type := {
   u_o: state u_S -> state u_S -> state u_S;
   o_implementable: forall p: state u_S, u_S ! u_o p;
   u_correct: forall A B: Type, forall f: A -> B, u_S ! f -> exists p: state u_S, u_o p >- f}.
 
-Definition emulatable {A B: Type} (S: universalizable) (f: A -> B) := exists p: state(u_S S), u_o S p >- f.
+Definition emulatable {S: system} {A B: Type} (u: universalizable S) (f: A -> B) := exists p: state S, u_o S u p >- f.
 
 Notation "x !! y" := (emulatable x y) (at level 50, left associativity).
 
 Theorem universal_eq:
-  forall S: universalizable, forall A B: Type, forall f: A -> B,
-  u_S S ! f <-> S !! f.
+  forall S: system, forall u: universalizable S, forall A B: Type, forall f: A -> B,
+  S ! f <-> u !! f.
 Proof.
   intros. split.
   - intros. apply (u_correct S). apply H.
   - intros. destruct H as [p H]. pose proof can_function_simulate_shares_implementation.
-    specialize (H0 (u_S S) (state(u_S S)) (state(u_S S)) A B (u_o S p) f).
+    specialize (H0 S (state S) (state S) A B (u_o S u p) f).
     apply H0.
     -- apply (o_implementable S).
     -- apply H.
